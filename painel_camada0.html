@@ -1,0 +1,674 @@
+<meta charset="utf-8">
+<title>TRIA-BR · Camada 0 — Painel de Execução</title>
+<style>
+:root{
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --accent:#0e6b63; --accent-ink:#ffffff; --accent-soft:rgba(14,107,99,.08);
+  --seq:#2a78d6; --good:#0ca30c; --good-text:#006300; --warn:#fab219; --warn-text:#7a5200;
+  --crit:#d03b3b; --crit-text:#a32424; --serious:#ec835a; --serious-text:#9c4520;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+    --accent:#3db3a8; --accent-ink:#062522; --accent-soft:rgba(61,179,168,.12);
+    --seq:#3987e5; --good:#0ca30c; --good-text:#3fc43f; --warn:#fab219; --warn-text:#fab219;
+    --crit:#d03b3b; --crit-text:#e66767; --serious:#ec835a; --serious-text:#ec835a;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+  --accent:#3db3a8; --accent-ink:#062522; --accent-soft:rgba(61,179,168,.12);
+  --seq:#3987e5; --good:#0ca30c; --good-text:#3fc43f; --warn:#fab219; --warn-text:#fab219;
+  --crit:#d03b3b; --crit-text:#e66767; --serious:#ec835a; --serious-text:#ec835a;
+}
+:root[data-theme="light"]{
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --accent:#0e6b63; --accent-ink:#ffffff; --accent-soft:rgba(14,107,99,.08);
+  --seq:#2a78d6; --good:#0ca30c; --good-text:#006300; --warn:#fab219; --warn-text:#7a5200;
+  --crit:#d03b3b; --crit-text:#a32424; --serious:#ec835a; --serious-text:#9c4520;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{background:var(--page);color:var(--ink);font-family:var(--sans);margin:0;
+  -webkit-font-smoothing:antialiased;line-height:1.45}
+.app{max-width:1080px;margin:0 auto;padding:28px 20px 64px;display:flex;flex-direction:column;gap:20px}
+
+/* ---------- header ---------- */
+.hdr{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;
+  border-bottom:1px solid var(--border);padding-bottom:18px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 6px}
+h1{font-size:clamp(20px,3.4vw,27px);font-weight:650;letter-spacing:-.015em;margin:0;text-wrap:balance}
+.hdr-sub{color:var(--ink2);font-size:13.5px;margin:6px 0 0;max-width:56ch}
+.lgpd{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;
+  color:var(--ink2);border:1px solid var(--border);border-radius:999px;padding:6px 12px;background:var(--surface)}
+.lgpd .dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
+
+/* ---------- controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.btn{font:inherit;font-weight:600;font-size:13.5px;border-radius:8px;padding:10px 16px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.dropzone:focus-visible,.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn[disabled]{opacity:.5;cursor:default;pointer-events:none}
+.dropzone{flex:1;min-width:240px;border:1.5px dashed var(--axis);border-radius:8px;display:flex;
+  align-items:center;justify-content:center;gap:8px;padding:10px 14px;color:var(--ink2);
+  font-size:13px;cursor:pointer;background:transparent}
+.dropzone.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.dropzone input{display:none}
+
+/* ---------- pipeline ---------- */
+.pipe-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.pipe-title{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 14px}
+.pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:0;overflow-x:auto}
+.stage{position:relative;padding:0 18px 0 0;min-width:150px}
+.stage + .stage{padding-left:18px;border-left:1px solid var(--grid)}
+.stage .s-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink2);display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.s-label .idx{color:var(--accent);font-weight:700}
+.stage .s-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(22px,3vw,30px);
+  font-weight:700;line-height:1.05;transition:color .2s}
+.stage .s-num.tick{color:var(--accent)}
+.stage .s-sub{font-size:12px;color:var(--muted);margin-top:5px}
+.pipe-branch{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--grid)}
+.branch-chip{display:inline-flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink2);
+  border-left:3px solid var(--crit);padding:4px 10px;background:var(--page);border-radius:0 6px 6px 0}
+.branch-chip.warnb{border-left-color:var(--warn)}
+.branch-chip.serb{border-left-color:var(--serious)}
+.branch-chip b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px;color:var(--ink)}
+
+/* ---------- stat tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.tile .t-label{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.tile .t-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:24px;font-weight:700;margin-top:6px}
+.tile .t-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+.sw{width:9px;height:9px;border-radius:3px;flex:none}
+
+/* ---------- charts ---------- */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:840px){.charts{grid-template-columns:1fr}.pipe{grid-template-columns:repeat(2,1fr)}
+  .stage:nth-child(3){border-left:none;padding-left:0;margin-top:14px}
+  .stage:nth-child(4){margin-top:14px}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;position:relative}
+.card h2{font-size:14px;font-weight:650;margin:0 0 2px;letter-spacing:-.01em}
+.card .c-sub{font-size:12px;color:var(--muted);margin:0 0 12px}
+.nan-chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;
+  color:var(--warn-text);background:var(--page);border:1px solid var(--border);border-radius:6px;
+  padding:3px 8px;margin-top:8px}
+svg text{font-family:var(--sans)}
+.tooltip{position:absolute;pointer-events:none;background:var(--ink);color:var(--page);
+  font-family:var(--mono);font-size:11.5px;padding:6px 9px;border-radius:6px;white-space:nowrap;
+  transform:translate(-50%,-115%);opacity:0;transition:opacity .1s;z-index:5}
+.tooltip.on{opacity:1}
+
+/* horizontal reason bars */
+.hrow{display:grid;grid-template-columns:minmax(150px,42%) 1fr 52px;align-items:center;gap:10px;
+  padding:7px 0;border-bottom:1px solid var(--grid);font-size:12.5px}
+.hrow:last-child{border-bottom:none}
+.hrow .h-label{display:flex;align-items:center;gap:7px;color:var(--ink2)}
+.hrow .h-ico{font-family:var(--mono);font-weight:700;font-size:11px;width:16px;height:16px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;border-radius:4px}
+.hrow .h-track{height:14px;background:var(--page);border-radius:4px;position:relative;overflow:hidden}
+.hrow .h-fill{position:absolute;inset:0 auto 0 0;border-radius:4px;min-width:2px;transition:width .5s ease}
+.hrow .h-val{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;font-weight:700}
+
+/* ---------- tabs & tables ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tab{font:inherit;font-size:13px;font-weight:600;background:none;border:none;color:var(--ink2);
+  padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.tab .cnt{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:5px}
+.panel{background:var(--surface);border:1px solid var(--border);border-top:none;
+  border-radius:0 0 12px 12px;overflow:hidden}
+.tbl-scroll{overflow-x:auto;max-height:380px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+thead th{position:sticky;top:0;background:var(--surface);text-align:left;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;
+  padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--grid);white-space:nowrap;vertical-align:middle}
+tbody tr:hover{background:var(--accent-soft)}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+th.num{text-align:right}
+td.mono{font-family:var(--mono);font-size:11.5px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;
+  padding:2px 9px;white-space:nowrap}
+.chip.ok{color:var(--good-text);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.chip.warnc{color:var(--warn-text);background:color-mix(in srgb,var(--warn) 16%,transparent)}
+.chip.critc{color:var(--crit-text);background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.tbl-note{font-size:11.5px;color:var(--muted);padding:9px 12px;border-top:1px solid var(--grid);
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.dl{font:inherit;font-size:11.5px;font-weight:600;color:var(--accent);background:none;border:none;
+  cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- log ---------- */
+.log{font-family:var(--mono);font-size:11.5px;line-height:1.7;padding:14px 16px;max-height:380px;
+  overflow-y:auto;color:var(--ink2)}
+.log .ln{white-space:pre-wrap;word-break:break-all}
+.log .gov{color:var(--serious-text);font-weight:700}
+.log .rej{color:var(--crit-text)}
+.log .okl{color:var(--good-text)}
+.log .t{color:var(--muted)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px}
+.foot{font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:14px;max-width:72ch}
+.foot code{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+
+<div class="app">
+  <header class="hdr">
+    <div>
+      <p class="eyebrow">TRIA-BR · Camada 0 · Apêndice C.0</p>
+      <h1>Painel de Execução do Saneador TISS</h1>
+      <p class="hdr-sub">Do XML hostil à matriz matemática: ingestão em fluxo, chave composta,
+        anomalias rotuladas como <code style="font-family:var(--mono)">NaN</code> — nunca imputadas.</p>
+    </div>
+    <span class="lgpd"><span class="dot"></span>processamento 100% local · nenhum dado sai do navegador</span>
+  </header>
+
+  <div class="controls">
+    <button class="btn primary" id="btnDemo">Processar lote sintético (seed = 42)</button>
+    <label class="dropzone" id="drop" tabindex="0">
+      <span>⬆︎ arraste seus XML TISS aqui ou clique para selecionar</span>
+      <input type="file" id="fileInput" multiple accept=".xml,text/xml">
+    </label>
+    <button class="btn" id="btnClear" disabled>Limpar</button>
+  </div>
+
+  <section class="pipe-wrap" aria-label="Fluxo de produção da Camada 0">
+    <p class="pipe-title">Fluxo de produção — tempo real</p>
+    <div class="pipe">
+      <div class="stage">
+        <div class="s-label"><span class="idx">1</span> Ingestão em fluxo</div>
+        <div class="s-num" id="nGuias">0</div>
+        <div class="s-sub"><span id="nArq">0</span> arquivo(s) varrido(s) · iterparse</div>
+      </div>
+      <div class="stage">
+        <div class="s-label"><span class="idx">2</span> Chave &amp; dedup</div>
+        <div class="s-num" id="nChaves">0</div>
+        <div class="s-sub">chaves ANS + competência + guia</div>
+      </div>
+      <div class="stage">
+        <div class="s-label"><span class="idx">3</span> Anomalias rotuladas</div>
+        <div class="s-num" id="nFlags">0</div>
+        <div class="s-sub">flags → NaN preservado</div>
+      </div>
+      <div class="stage">
+        <div class="s-label"><span class="idx">4</span> Matriz saneada</div>
+        <div class="s-num" id="nSaneadas">0</div>
+        <div class="s-sub">prontas para Camadas 1 e 2</div>
+      </div>
+    </div>
+    <div class="pipe-branch">
+      <span class="branch-chip">rejeitadas <b id="nRej">0</b></span>
+      <span class="branch-chip serb">duplicatas purgadas <b id="nDup">0</b></span>
+      <span class="branch-chip warnb">guias com flag mantidas <b id="nFlagKeep">0</b></span>
+    </div>
+  </section>
+
+  <section class="tiles" aria-label="Resumo">
+    <div class="tile"><div class="t-label"><span class="sw" style="background:var(--good)"></span>Contas saneadas</div>
+      <div class="t-num" id="tSan">—</div><div class="t-sub" id="tSanSub">aguardando execução</div></div>
+    <div class="tile"><div class="t-label"><span class="sw" style="background:var(--crit)"></span>Rejeitadas</div>
+      <div class="t-num" id="tRej">—</div><div class="t-sub" id="tRejSub">fila de auditoria de dados</div></div>
+    <div class="tile"><div class="t-label"><span class="sw" style="background:var(--seq)"></span>Valor na matriz</div>
+      <div class="t-num" id="tValor">—</div><div class="t-sub">soma de valorTotalGeral</div></div>
+    <div class="tile"><div class="t-label"><span class="sw" style="background:var(--warn)"></span>Diárias sem dado</div>
+      <div class="t-num" id="tNan">—</div><div class="t-sub">NaN, não imputadas</div></div>
+  </section>
+
+  <section class="charts">
+    <div class="card" id="histCard">
+      <h2>Distribuição da diária média (valor_diaria)</h2>
+      <p class="c-sub">Somente guias saneadas com período válido — a cauda direita é a matéria-prima da Camada&nbsp;1</p>
+      <div id="hist"></div>
+      <span class="nan-chip" id="histNan" hidden>⚠ <span></span></span>
+      <div class="tooltip" id="histTip"></div>
+    </div>
+    <div class="card" id="reasonCard">
+      <h2>Desvios e rotulagens do pipeline</h2>
+      <p class="c-sub">Por que cada guia saiu da fila — ou seguiu com flag</p>
+      <div id="reasons"></div>
+      <div class="tooltip" id="reasonTip"></div>
+    </div>
+  </section>
+
+  <section aria-label="Detalhe">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="san">Matriz saneada<span class="cnt" id="cSan"></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="rej">Rejeitadas<span class="cnt" id="cRej"></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="log">Log de execução<span class="cnt" id="cLog"></span></button>
+    </div>
+    <div class="panel">
+      <div id="pane-san"><div class="empty">Execute o lote sintético ou carregue seus XML para popular a matriz.</div></div>
+      <div id="pane-rej" hidden><div class="empty">Nenhuma rejeição ainda.</div></div>
+      <div id="pane-log" hidden><div class="log" id="logBox"></div></div>
+    </div>
+  </section>
+
+  <p class="foot">Réplica fiel, em JavaScript, do extrator <code>extrair_tiss_producao()</code> do Apêndice C.0:
+    mesmas regras de sentinela, chave composta, derivação temporal do <code>los</code>, deduplicação
+    <code>keep=last</code> e codificação de ausências como <code>NaN</code>. As colunas de saída
+    (<code>los</code>, <code>n_itens</code>, <code>valor_diaria</code>, <code>pct_opme</code>) alimentam o
+    classificador do Apêndice C.1 sem tradução.</p>
+</div>
+
+<script>
+'use strict';
+const NS = 'http://www.ans.gov.br/padroes/tiss/schemas';
+const $ = id => document.getElementById(id);
+const fmtBRL = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const fmtBRLc = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',notation:'compact',maximumFractionDigits:1});
+const fmtN = new Intl.NumberFormat('pt-BR');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ============ Camada 0 — porte fiel do extrator Python ============ */
+function textoNS(el, tag){
+  const l = el.getElementsByTagNameNS(NS, tag);
+  return l.length ? (l[0].textContent || '').trim() : '';
+}
+function valorMonetario(bruto){          // devolve [valor, flag_ilegivel]
+  if (bruto === '') return [0.0, 1];
+  const v = Number(bruto);
+  return Number.isFinite(v) ? [v, 0] : [0.0, 1];
+}
+const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
+
+function processarGuia(guia, arquivo){
+  // 1. chave composta — tag ausente E presente-porém-vazia caem no sentinela
+  const regAns  = textoNS(guia,'registroANS') || 'SEM_REG';
+  const numGuia = textoNS(guia,'numeroGuiaPrestador') || 'SEM_ID';
+
+  // 2. los por delta temporal (não existe tag de diárias na guia)
+  const dtIni = textoNS(guia,'dataInicioFaturamento');
+  const dtFim = textoNS(guia,'dataFinalFaturamento');
+  let los = NaN, flagPeriodo = 1, competencia = '000000';
+  if (RE_DATA.test(dtIni) && RE_DATA.test(dtFim)){
+    const ini = Date.parse(dtIni+'T00:00:00Z'), fim = Date.parse(dtFim+'T00:00:00Z');
+    if (!isNaN(ini) && !isNaN(fim)){
+      competencia = dtFim.slice(0,7).replace('-','');
+      if (fim >= ini){ los = Math.max(1, Math.round((fim-ini)/864e5)); flagPeriodo = 0; }
+    }
+  }
+  const idConta = `${regAns}_${competencia}_${numGuia}`;
+
+  // 3. bloco valorTotal (hierarquia do XSD real). Em guias reais, cada
+  // procedimento/despesa tem seu próprio valorTotal escalar, que aparece
+  // ANTES do bloco-resumo — o bloco certo é o que contém valorTotalGeral.
+  let valorTotal = 0, flagValor = 1, valorOpme = 0, vt = null;
+  for (const cand of guia.getElementsByTagNameNS(NS,'valorTotal'))
+    if (cand.getElementsByTagNameNS(NS,'valorTotalGeral').length){ vt = cand; break; }
+  if (vt){
+    [valorTotal, flagValor] = valorMonetario(textoNS(vt,'valorTotalGeral'));
+    [valorOpme]             = valorMonetario(textoNS(vt,'valorOPME'));
+  }
+
+  // 4. vetorização TUSS
+  const procedimentos = [];
+  for (const pe of guia.getElementsByTagNameNS(NS,'procedimentoExecutado'))
+    for (const cp of pe.getElementsByTagNameNS(NS,'codigoProcedimento'))
+      if (cp.textContent && cp.textContent.trim()) procedimentos.push(cp.textContent.trim());
+
+  // 5. features de risco — NaN em vez de imputação cega
+  const pctOpme = valorTotal > 0 ? valorOpme/valorTotal : 0;
+  const valorDiaria = flagPeriodo === 0 ? valorTotal/los : NaN;
+
+  // 6. filtragem ativa
+  if (numGuia === 'SEM_ID' || valorTotal <= 0){
+    return {rejeitada:true, reg:{arquivo, id_provisorio:idConta,
+      motivo: numGuia==='SEM_ID' ? 'Guia sem identificação' : 'Valor total zerado ou ilegível'}};
+  }
+  const cidNo = guia.getElementsByTagNameNS(NS,'diagnosticoCID')[0];
+  const cid = cidNo && cidNo.textContent.trim() ? cidNo.textContent.trim().toUpperCase() : 'INDEFINIDO';
+  return {rejeitada:false, reg:{
+    id_conta:idConta, cid_principal:cid, procedimentos_tuss:procedimentos,
+    n_itens:procedimentos.length, los,
+    valor_total:Math.round(valorTotal*100)/100, valor_opme:Math.round(valorOpme*100)/100,
+    pct_opme:Math.round(pctOpme*1e4)/1e4,
+    valor_diaria: flagPeriodo===0 ? Math.round(valorDiaria*100)/100 : NaN,
+    periodo_invalido:flagPeriodo, valor_ilegivel:flagValor, arquivo_origem:arquivo}};
+}
+
+/* ============ estado & execução ============ */
+const S = { mapa:new Map(), rejeitadas:[], nGuias:0, nArq:0, nDup:0, corridas:0 };
+const delay = ms => new Promise(r => setTimeout(r, reduceMotion ? 0 : ms));
+let t0 = 0;
+
+function log(msg, cls){
+  const el = document.createElement('div');
+  el.className = 'ln' + (cls ? ' '+cls : '');
+  const t = ((performance.now()-t0)/1000).toFixed(2).padStart(6,' ');
+  el.innerHTML = `<span class="t">[${t}s]</span> ${msg}`;
+  $('logBox').appendChild(el);
+  $('logBox').scrollTop = $('logBox').scrollHeight;
+  $('cLog').textContent = ' ' + $('logBox').children.length;
+}
+
+async function processarArquivos(arquivos){
+  $('btnDemo').disabled = true; $('btnClear').disabled = true;
+  if (S.corridas === 0){ t0 = performance.now(); }
+  S.corridas++;
+  const parser = new DOMParser();
+  for (const arq of arquivos){
+    S.nArq++;
+    const doc = parser.parseFromString(arq.conteudo, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length){
+      S.rejeitadas.push({arquivo:arq.nome, id_provisorio:'N/A', motivo:'XML corrompido ou malformado'});
+      log(`✗ ${arq.nome} — XML corrompido ou malformado; arquivo inteiro desviado`, 'rej');
+      pintarTudo(); await delay(140); continue;
+    }
+    const guias = doc.getElementsByTagNameNS(NS,'guiaResumoInternacao');
+    let san=0, rej=0, dup=0;
+    for (const g of guias){
+      S.nGuias++;
+      const r = processarGuia(g, arq.nome);
+      if (r.rejeitada){ S.rejeitadas.push(r.reg); rej++; }
+      else {
+        if (S.mapa.has(r.reg.id_conta)) { S.nDup++; dup++; }   // keep=last: sobrescreve
+        S.mapa.set(r.reg.id_conta, r.reg); san++;
+      }
+    }
+    log(`✓ ${arq.nome} — ${guias.length} guia(s): ${san} saneada(s), ${rej} rejeitada(s)` +
+        (dup ? ` · <span class="gov">${dup} reapresentação(ões) sobrescrita(s) — keep=last</span>` : ''), 'okl');
+    pintarTudo(); await delay(140);
+  }
+  if (S.nDup > 0) log(`[GOVERNANÇA] ${S.nDup} guia(s) duplicada(s) purgada(s) no acumulado — a reapresentação prevalece.`, 'gov');
+  const sane = [...S.mapa.values()];
+  log(`Extração concluída: ${sane.length} conta(s) prontas para triagem; ${S.rejeitadas.length} registro(s) desviado(s) para auditoria de dados.`);
+  const nNan = sane.filter(r => r.periodo_invalido===1).length;
+  if (nNan) log(`${nNan} guia(s) seguem na matriz com los/valor_diaria = NaN — o HistGradientBoostingClassifier da Camada 2 trata ausências nativamente.`);
+  pintarTudo();
+  $('btnDemo').disabled = false; $('btnClear').disabled = false;
+}
+
+/* ============ pintura ============ */
+function tick(id, val){
+  const el = $(id);
+  const s = fmtN.format(val);
+  if (el.textContent !== s){ el.textContent = s; el.classList.add('tick'); setTimeout(()=>el.classList.remove('tick'), 250); }
+}
+function pintarTudo(){
+  const sane = [...S.mapa.values()];
+  const nFlagKeep = sane.filter(r => r.periodo_invalido===1).length;
+  tick('nGuias', S.nGuias); $('nArq').textContent = fmtN.format(S.nArq);
+  tick('nChaves', S.mapa.size + S.nDup);
+  tick('nFlags', nFlagKeep + S.rejeitadas.length);
+  tick('nSaneadas', sane.length);
+  $('nRej').textContent = fmtN.format(S.rejeitadas.length);
+  $('nDup').textContent = fmtN.format(S.nDup);
+  $('nFlagKeep').textContent = fmtN.format(nFlagKeep);
+
+  $('tSan').textContent = fmtN.format(sane.length);
+  $('tSanSub').textContent = S.nGuias ? `${(100*sane.length/Math.max(1,S.nGuias)).toFixed(1)}% das guias varridas` : 'aguardando execução';
+  $('tRej').textContent = fmtN.format(S.rejeitadas.length);
+  $('tRejSub').textContent = 'fila de auditoria de dados';
+  const vTot = sane.reduce((a,r)=>a+r.valor_total,0);
+  $('tValor').textContent = vTot ? fmtBRLc.format(vTot) : '—';
+  $('tNan').textContent = fmtN.format(nFlagKeep);
+
+  $('cSan').textContent = ' ' + fmtN.format(sane.length);
+  $('cRej').textContent = ' ' + fmtN.format(S.rejeitadas.length);
+  desenharHistograma(sane);
+  desenharMotivos(sane);
+  tabelaSaneadas(sane);
+  tabelaRejeitadas();
+}
+
+/* ---- histograma ---- */
+function desenharHistograma(sane){
+  const box = $('hist');
+  const vals = sane.map(r=>r.valor_diaria).filter(Number.isFinite).sort((a,b)=>a-b);
+  const nNan = sane.length - vals.length;
+  const chip = $('histNan');
+  chip.hidden = nNan===0;
+  if (nNan) chip.lastElementChild.textContent = `${fmtN.format(nNan)} guia(s) sem diária (NaN) fora do histograma — rotuladas, não imputadas`;
+  if (!vals.length){ box.innerHTML = '<div class="empty">Sem dados ainda.</div>'; return; }
+
+  const p95 = vals[Math.min(vals.length-1, Math.floor(vals.length*.95))];
+  const NB = 14, top = Math.max(p95, vals[0]+1), w = top/NB;
+  const bins = Array.from({length:NB+1},()=>0);
+  for (const v of vals){ bins[Math.min(NB, Math.floor(v/w))]++; }
+  const maxB = Math.max(...bins);
+
+  const W=520,H=210,mL=36,mR=8,mT=10,mB=26, iw=W-mL-mR, ih=H-mT-mB;
+  const bw = iw/(NB+1);
+  let g = '';
+  const steps = 3;
+  for (let i=1;i<=steps;i++){
+    const y = mT + ih - ih*i/steps;
+    g += `<line x1="${mL}" y1="${y}" x2="${W-mR}" y2="${y}" stroke="var(--grid)" stroke-width="1"/>`;
+    g += `<text x="${mL-6}" y="${y+3.5}" text-anchor="end" font-size="10" fill="var(--muted)" font-variant-numeric="tabular-nums">${fmtN.format(Math.round(maxB*i/steps))}</text>`;
+  }
+  let bars='', hits='';
+  for (let i=0;i<=NB;i++){
+    const h = maxB ? ih*bins[i]/maxB : 0;
+    const x = mL + i*bw + 1, y = mT+ih-h, wid = bw-2, r = Math.min(4, wid/2, h);
+    if (bins[i]>0){
+      bars += `<path d="M${x},${mT+ih} V${y+r} Q${x},${y} ${x+r},${y} H${x+wid-r} Q${x+wid},${y} ${x+wid},${y+r} V${mT+ih} Z" fill="var(--seq)"/>`;
+    }
+    const lo=i*w, hi=(i+1)*w;
+    const lbl = i===NB ? `≥ ${fmtBRLc.format(top)}` : `${fmtBRLc.format(lo)} – ${fmtBRLc.format(hi)}`;
+    hits += `<rect data-i="${i}" data-l="${lbl.replace(/"/g,'')}" data-c="${bins[i]}" x="${mL+i*bw}" y="${mT}" width="${bw}" height="${ih}" fill="transparent"/>`;
+  }
+  const xl = [0, Math.round(NB/2), NB];
+  let xlabels='';
+  for (const i of xl){
+    const t = i===NB ? `≥${fmtBRLc.format(top)}` : fmtBRLc.format(i*w);
+    const anchor = i===0?'start':(i===NB?'end':'middle');
+    xlabels += `<text x="${mL+i*bw+(i===NB?bw:0)}" y="${H-8}" text-anchor="${anchor}" font-size="10" fill="var(--muted)">${t}</text>`;
+  }
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Histograma da diária média das guias saneadas">
+    ${g}<line x1="${mL}" y1="${mT+ih}" x2="${W-mR}" y2="${mT+ih}" stroke="var(--axis)" stroke-width="1"/>
+    ${bars}${xlabels}${hits}</svg>`;
+
+  const tip = $('histTip'), card = $('histCard');
+  box.querySelectorAll('rect[data-i]').forEach(r=>{
+    r.addEventListener('mousemove', e=>{
+      const cr = card.getBoundingClientRect();
+      tip.textContent = `${r.dataset.l} · ${fmtN.format(+r.dataset.c)} guia(s)`;
+      tip.style.left = (e.clientX-cr.left)+'px';
+      tip.style.top  = (e.clientY-cr.top)+'px';
+      tip.classList.add('on');
+    });
+    r.addEventListener('mouseleave', ()=>tip.classList.remove('on'));
+  });
+}
+
+/* ---- motivos ---- */
+function desenharMotivos(sane){
+  const box = $('reasons');
+  const cont = {};
+  for (const r of S.rejeitadas) cont[r.motivo] = (cont[r.motivo]||0)+1;
+  const linhas = [
+    {ico:'✗', cor:'var(--crit)',   txt:'var(--crit-text)',    label:'Valor zerado ou ilegível',  n:cont['Valor total zerado ou ilegível']||0, tipo:'rejeitada'},
+    {ico:'✗', cor:'var(--crit)',   txt:'var(--crit-text)',    label:'Guia sem identificação',    n:cont['Guia sem identificação']||0,        tipo:'rejeitada'},
+    {ico:'✗', cor:'var(--crit)',   txt:'var(--crit-text)',    label:'XML corrompido',            n:cont['XML corrompido ou malformado']||0,  tipo:'rejeitada'},
+    {ico:'⧉', cor:'var(--serious)',txt:'var(--serious-text)', label:'Duplicata purgada',         n:S.nDup,                                   tipo:'sobrescrita (keep=last)'},
+    {ico:'⚠', cor:'var(--warn)',   txt:'var(--warn-text)',    label:'Período inválido → NaN',    n:sane.filter(r=>r.periodo_invalido===1).length, tipo:'mantida na matriz, com flag'},
+  ];
+  const max = Math.max(1, ...linhas.map(l=>l.n));
+  const tot = linhas.reduce((a,l)=>a+l.n,0);
+  if (!tot){ box.innerHTML = '<div class="empty">Sem desvios ainda.</div>'; return; }
+  box.innerHTML = linhas.map((l,i)=>`
+    <div class="hrow" data-i="${i}">
+      <span class="h-label"><span class="h-ico" style="background:color-mix(in srgb,${l.cor} 16%,transparent);color:${l.txt}">${l.ico}</span>${l.label}</span>
+      <span class="h-track"><span class="h-fill" style="width:${100*l.n/max}%;background:${l.cor}"></span></span>
+      <span class="h-val" style="color:${l.txt}">${fmtN.format(l.n)}</span>
+    </div>`).join('');
+  const tip = $('reasonTip'), card = $('reasonCard');
+  box.querySelectorAll('.hrow').forEach(row=>{
+    const l = linhas[+row.dataset.i];
+    row.addEventListener('mousemove', e=>{
+      const cr = card.getBoundingClientRect();
+      tip.textContent = `${l.label}: ${fmtN.format(l.n)} · ${l.tipo}`;
+      tip.style.left = (e.clientX-cr.left)+'px'; tip.style.top = (e.clientY-cr.top)+'px';
+      tip.classList.add('on');
+    });
+    row.addEventListener('mouseleave', ()=>tip.classList.remove('on'));
+  });
+}
+
+/* ---- tabelas ---- */
+const LIM = 80;
+function tabelaSaneadas(sane){
+  const pane = $('pane-san');
+  if (!sane.length){ pane.innerHTML = '<div class="empty">Execute o lote sintético ou carregue seus XML para popular a matriz.</div>'; return; }
+  const rows = sane.slice(0, LIM).map(r=>`<tr>
+    <td class="mono">${r.id_conta}</td>
+    <td class="mono">${r.cid_principal}</td>
+    <td class="num">${r.n_itens}</td>
+    <td class="num">${Number.isFinite(r.los)? r.los : 'NaN'}</td>
+    <td class="num">${fmtBRL.format(r.valor_total)}</td>
+    <td class="num">${(r.pct_opme*100).toFixed(1)}%</td>
+    <td class="num">${Number.isFinite(r.valor_diaria)? fmtBRL.format(r.valor_diaria) : 'NaN'}</td>
+    <td>${r.periodo_invalido ? '<span class="chip warnc">⚠ período inválido</span>' : '<span class="chip ok">✓ íntegra</span>'}</td>
+  </tr>`).join('');
+  pane.innerHTML = `<div class="tbl-scroll"><table>
+    <thead><tr><th>id_conta</th><th>cid</th><th class="num">n_itens</th><th class="num">los</th>
+    <th class="num">valor_total</th><th class="num">pct_opme</th><th class="num">valor_diaria</th><th>qualidade</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <div class="tbl-note"><span>${sane.length>LIM ? `mostrando ${LIM} de ${fmtN.format(sane.length)} contas · ` : ''}colunas alinhadas ao Apêndice C.1</span>
+    <button class="dl" id="btnCsv">baixar matriz completa (.csv)</button></div>`;
+  $('btnCsv').addEventListener('click', ()=>baixarCSV(sane));
+}
+function tabelaRejeitadas(){
+  const pane = $('pane-rej');
+  if (!S.rejeitadas.length){ pane.innerHTML = '<div class="empty">Nenhuma rejeição ainda.</div>'; return; }
+  const rows = S.rejeitadas.slice(0, LIM).map(r=>`<tr>
+    <td class="mono">${r.arquivo}</td><td class="mono">${r.id_provisorio}</td>
+    <td><span class="chip critc">✗ ${r.motivo}</span></td></tr>`).join('');
+  pane.innerHTML = `<div class="tbl-scroll"><table>
+    <thead><tr><th>arquivo</th><th>id provisório</th><th>motivo</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <div class="tbl-note"><span>${S.rejeitadas.length>LIM ? `mostrando ${LIM} de ${fmtN.format(S.rejeitadas.length)} · ` : ''}fila de auditoria de dados — nada foi descartado em silêncio</span></div>`;
+}
+function baixarCSV(sane){
+  const head = 'id_conta;cid_principal;n_itens;los;valor_total;valor_opme;pct_opme;valor_diaria;periodo_invalido;valor_ilegivel;arquivo_origem';
+  const body = sane.map(r=>[r.id_conta,r.cid_principal,r.n_itens,
+    Number.isFinite(r.los)?r.los:'', r.valor_total, r.valor_opme, r.pct_opme,
+    Number.isFinite(r.valor_diaria)?r.valor_diaria:'', r.periodo_invalido, r.valor_ilegivel, r.arquivo_origem].join(';')).join('\n');
+  const blob = new Blob(['﻿'+head+'\n'+body], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'tria_br_camada0_matriz.csv'; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ============ gerador sintético (seed = 42, mulberry32) ============ */
+function mulberry32(seed){ return function(){ seed|=0; seed = seed+0x6D2B79F5|0;
+  let t = Math.imul(seed^seed>>>15, 1|seed); t = t+Math.imul(t^t>>>7, 61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296; }; }
+function gerarLoteSintetico(){
+  const rnd = mulberry32(42);
+  const norm = ()=>{ const u=Math.max(rnd(),1e-9), v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+  const gamma2 = s => -s*(Math.log(Math.max(rnd(),1e-9))+Math.log(Math.max(rnd(),1e-9)));
+  const CIDS = ['I21.0','S72.0','J18.9','K35.8','A41.9','N39.0','C34.9','I63.9','O80','I50.0'];
+  const TUSS = ['31005497','40304361','30715016','31602096','31003079','31101011','40803104','30912016','41001010','30213036'];
+  const pad = (n,w)=>String(n).padStart(w,'0');
+  const meses = ['2025-03','2025-04','2025-05','2025-06'];
+  const arquivos = []; const historico = [];
+  let seq = 0;
+  for (let f=0; f<8; f++){
+    const mes = meses[f % meses.length];
+    const guias = [];
+    const nG = 34 + Math.floor(rnd()*14);
+    for (let i=0;i<nG;i++){
+      seq++;
+      const numGuia = 'G'+pad(seq,5);
+      const los = Math.max(1, Math.round(gamma2(2.4)));
+      const diaIni = 1+Math.floor(rnd()*20);
+      const ini = `${mes}-${pad(diaIni,2)}`;
+      const fimD = new Date(Date.parse(ini+'T00:00:00Z') + los*864e5);
+      const fim = fimD.toISOString().slice(0,10);
+      let valor = Math.min(400000, Math.max(800, Math.exp(8.6+0.9*norm())));
+      const pctO = Math.pow(rnd(),3)*0.6;
+      const opme = valor*pctO;
+      const nIt = Math.max(1, Math.round(2+gamma2(1.6)+los*0.8));
+      const procs = Array.from({length:Math.min(nIt,14)},()=>TUSS[Math.floor(rnd()*TUSS.length)]);
+      const cid = CIDS[Math.floor(rnd()*CIDS.length)];
+      const layoutB = rnd()<0.4;
+      // hostilidades calibradas
+      const semDatas = rnd()<0.05, ilegivel = rnd()<0.025, semId = rnd()<0.015;
+      const g = xmlGuia({
+        reg:'312345', num: semId?'':numGuia,
+        cid, layoutB,
+        ini: semDatas?'':ini, fim: semDatas?'':fim,
+        total: ilegivel ? 'R$ '+fmtN.format(Math.round(valor))+',00' : valor.toFixed(2),
+        opme: opme.toFixed(2), procs});
+      guias.push(g);
+      if (!semId && !ilegivel) historico.push({num:numGuia, cid, ini, fim, valor, opme, procs});
+      // 3%: reapresentação de guia anterior (mesma chave, valor corrigido)
+      if (historico.length>10 && rnd()<0.03){
+        const h = historico[Math.floor(rnd()*historico.length)];
+        guias.push(xmlGuia({reg:'312345', num:h.num, cid:h.cid, layoutB:false,
+          ini:h.ini, fim:h.fim, total:(h.valor*0.93).toFixed(2), opme:(h.opme*0.9).toFixed(2), procs:h.procs}));
+      }
+    }
+    let conteudo = xmlLote(guias);
+    const nome = `lote_${mes.replace('-','_')}_${pad(f+1,2)}.xml`;
+    if (f===5) conteudo = conteudo.slice(0, 400);   // um arquivo corrompido (truncado)
+    arquivos.push({nome, conteudo});
+  }
+  return arquivos;
+}
+function xmlGuia({reg,num,cid,layoutB,ini,fim,total,opme,procs}){
+  const diag = layoutB
+    ? `<ans:diagnosticoCID><ans:codigoDiagnostico>${cid}</ans:codigoDiagnostico></ans:diagnosticoCID>`
+    : `<ans:diagnosticoCID>${cid}</ans:diagnosticoCID>`;
+  const px = procs.map(p=>`<ans:procedimentoExecutado><ans:procedimento><ans:codigoProcedimento>${p}</ans:codigoProcedimento></ans:procedimento></ans:procedimentoExecutado>`).join('');
+  const datas = (ini?`<ans:dataInicioFaturamento>${ini}</ans:dataInicioFaturamento>`:'') +
+                (fim?`<ans:dataFinalFaturamento>${fim}</ans:dataFinalFaturamento>`:'');
+  return `<ans:guiaResumoInternacao><ans:cabecalhoGuia><ans:registroANS>${reg}</ans:registroANS><ans:numeroGuiaPrestador>${num}</ans:numeroGuiaPrestador></ans:cabecalhoGuia>${datas}${diag}<ans:procedimentosExecutados>${px}</ans:procedimentosExecutados><ans:valorTotal><ans:valorOPME>${opme}</ans:valorOPME><ans:valorTotalGeral>${total}</ans:valorTotalGeral></ans:valorTotal></ans:guiaResumoInternacao>`;
+}
+function xmlLote(guias){
+  return `<?xml version="1.0" encoding="UTF-8"?><ans:mensagemTISS xmlns:ans="${NS}"><ans:loteGuias>${guias.join('')}</ans:loteGuias></ans:mensagemTISS>`;
+}
+
+/* ============ interação ============ */
+$('btnDemo').addEventListener('click', async ()=>{
+  log('Gerando lote sintético hostil — seed fixa = 42 (reprodutível).');
+  await processarArquivos(gerarLoteSintetico());
+});
+$('btnClear').addEventListener('click', ()=>{
+  S.mapa.clear(); S.rejeitadas.length = 0;
+  S.nGuias = S.nArq = S.nDup = S.corridas = 0;
+  $('logBox').innerHTML = ''; $('cLog').textContent = '';
+  pintarTudo();
+  $('tSan').textContent = $('tRej').textContent = $('tValor').textContent = $('tNan').textContent = '—';
+  $('tSanSub').textContent = 'aguardando execução';
+  $('btnClear').disabled = true;
+});
+const drop = $('drop'), fi = $('fileInput');
+drop.addEventListener('click', ()=>fi.click());
+drop.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fi.click(); }});
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.remove('over');}));
+drop.addEventListener('drop', e=>lerArquivos(e.dataTransfer.files));
+fi.addEventListener('change', ()=>{ lerArquivos(fi.files); fi.value=''; });
+async function lerArquivos(fileList){
+  const xmls = [...fileList].filter(f=>f.name.toLowerCase().endsWith('.xml'));
+  if (!xmls.length){ log('Nenhum arquivo .xml entre os selecionados — nada a processar.', 'rej'); return; }
+  log(`${xmls.length} arquivo(s) local(is) recebido(s) — leitura integral no navegador, sem upload.`);
+  const arquivos = [];
+  for (const f of xmls) arquivos.push({nome:f.name, conteudo: await f.text()});
+  await processarArquivos(arquivos);
+}
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected', x===t ? 'true':'false'));
+    ['san','rej','log'].forEach(k=>{ $('pane-'+k).hidden = (t.dataset.tab!==k); });
+  });
+});
+</script>

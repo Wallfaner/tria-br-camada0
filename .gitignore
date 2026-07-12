@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.DS_Store
+xml_teste_local/
