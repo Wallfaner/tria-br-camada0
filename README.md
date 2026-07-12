@@ -28,7 +28,10 @@ motor de regras (Camada 1) e o classificador de risco (Camada 2).
 
 ### Painel no navegador (sem instalar nada)
 
-Abra `painel_camada0.html` em qualquer navegador e clique em **"Processar lote
+**▶ Abra o painel direto no navegador (GitHub Pages):**
+https://wallfaner.github.io/tria-br-camada0/painel_camada0.html
+
+Ou baixe `painel_camada0.html` e abra localmente. Clique em **"Processar lote
 sintético (seed = 42)"** — ou arraste os arquivos de `xml_teste/` (ou suas
 próprias guias TISS) para a área de upload. Todo o processamento é local.
 
